@@ -1,20 +1,20 @@
-FROM golang:1.8
-MAINTAINER Tony Dang
+FROM golang:alpine
+ARG pkg=github.com/bmooso/go-helloworld
 
-# Set GOPATH/GOROOT environment variables
-RUN mkdir -p /go
-ENV GOPATH /go
-ENV PATH $GOPATH/bin:$PATH
+COPY . $GOPATH/src/$pkg
+WORKDIR $GOPATH/src/$pkg
 
-# go get all of the dependencies
-RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+RUN set -ex && \
+  CGO_ENABLED=0 GOOS=linux \
+  go build \
+  -a \
+  -installsuffix cgo \
+  -o main
 
-# Set up app
-WORKDIR /go/src/github.com/hadv/eb-echo-docker
-ADD . .
-RUN dep ensure
-RUN go build -v
-
-EXPOSE 3000
-
-CMD ["./eb-echo-docker"]
+FROM alpine
+ARG pkg=github.com/bmooso/go-helloworld
+COPY --from=0 /etc/ssl /etc/ssl
+COPY --from=0 /go/src/$pkg/main /app/main
+EXPOSE 8080
+WORKDIR /app
+CMD ["/app/main", "--port=8080", "--host=0.0.0.0"]
